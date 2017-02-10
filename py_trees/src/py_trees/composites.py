@@ -468,6 +468,45 @@ class Sequence(Composite):
 class OneshotSequence(Sequence):
     pass
 
+
+class LoopingSequence(Sequence):
+    def __init__(self, name="LoopingSequence", children=None, *args, **kwargs):
+        super(LoopingSequence, self).__init__(name, children, *args, **kwargs)
+
+    def tick(self):
+        self.logger.debug("  %s [LoopingSequence.tick()]" % self.name)
+        if self.status != Status.RUNNING:
+            # sequence specific handling
+            self.current_index = 0
+            for child in self.children:
+                # reset the children, this helps when introspecting the tree
+                if child.status != Status.INVALID:
+                    child.stop(Status.INVALID)
+            # subclass (user) handling
+            self.initialise()
+        # run any work designated by a customised instance of this class
+        self.update()
+        # while True:     # looping
+        for child in itertools.islice(self.children, self.current_index, None):
+            for node in child.tick():
+                yield node
+                if node is child and node.status != Status.SUCCESS:
+                    self.status = node.status
+                    yield self
+                    return
+            self.current_index += 1
+        # At this point, all children are happy with their SUCCESS, so we should be happy too
+
+        # Original Sequence
+        # self.current_index -= 1  # went off the end of the list if we got to here
+        # self.stop(Status.SUCCESS)
+
+        # Looping Sequence
+        self.current_index = 0
+        self.status = Status.RUNNING
+        yield self
+
+
 ##############################################################################
 # Paralllel
 ##############################################################################
