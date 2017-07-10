@@ -292,7 +292,7 @@ class BehaviourTree(trees.BehaviourTree):
             os.makedirs(subdir)
 
         # opens in ros home directory for the user
-        if int(os.environ['PYTREE_BAGGING']) == 0:
+        if 'PYTREE_BAGGING' in os.environ and int(os.environ['PYTREE_BAGGING']) == 0:
             self.bag = None
         else:
             self.bag = rosbag.Bag(subdir + '/behaviour_tree_' + now.strftime("%H-%M-%S") + '.bag', 'w')
