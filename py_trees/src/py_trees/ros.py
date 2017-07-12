@@ -291,8 +291,21 @@ class BehaviourTree(trees.BehaviourTree):
         if not os.path.exists(subdir):
             os.makedirs(subdir)
 
-        # opens in ros home directory for the user
-        self.bag = rosbag.Bag(subdir + '/behaviour_tree_' + now.strftime("%H-%M-%S") + '.bag', 'w')
+        # PYTREE BAGGING or NOT
+        if 'PYTREE_BAGGING' in os.environ:
+            pytree_bagging = str(os.environ['PYTREE_BAGGING'])
+            if pytree_bagging.upper() == "TRUE":
+                pytree_bagging = True
+            else:
+                pytree_bagging = False
+        else:
+            pytree_bagging = False
+
+        if pytree_bagging:
+            # opens in ros home directory for the user
+            self.bag = rosbag.Bag(subdir + '/behaviour_tree_' + now.strftime("%H-%M-%S") + '.bag', 'w')
+        else:
+            self.bag = None
 
         self.last_tree = py_trees_msgs.BehaviourTree()
         self.lock = threading.Lock()
@@ -374,12 +387,13 @@ class BehaviourTree(trees.BehaviourTree):
             self.publishers.tip.publish(conversions.behaviour_to_msg(self.root.tip()))
             self.publishers.log_tree.publish(self.logging_visitor.tree)
             with self.lock:
-                if not self._bag_closed:
+                if not self._bag_closed and self.bag:
                     self.bag.write(self.publishers.log_tree.name, self.logging_visitor.tree)
             self.last_tree = self.logging_visitor.tree
 
     def cleanup(self):
         with self.lock:
-            self.bag.close()
+            if self.bag:
+                self.bag.close()
             self.interrupt_tick_tocking = True
             self._bag_closed = True
