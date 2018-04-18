@@ -369,8 +369,16 @@ class Chooser(Selector):
                 if child is self.current_child:
                     for node in self.current_child.tick():
                         yield node
-                elif child.status != Status.INVALID:
-                    child.stop(Status.INVALID)
+                    if child.status == Status.FAILURE:
+                        if not self.is_last_child(child):
+                            child.stop(Status.FAILURE)
+                            next_index = self.children.index(child) + 1
+                            self.current_child = self.children[next_index]
+                            for _node in self.current_child.tick():
+                                yield _node
+                            self.status = self.current_child.status
+                            yield self
+                            return
         else:
             for child in self.children:
                 for node in child.tick():
@@ -381,6 +389,9 @@ class Chooser(Selector):
         new_status = self.current_child.status if self.current_child is not None else Status.FAILURE
         self.stop(new_status)
         yield self
+
+    def is_last_child(self, child):
+        return self.children and child == self.children[-1]
 
 ##############################################################################
 # Sequence
